@@ -1,0 +1,31 @@
+# loan_default_forest.py
+# Auto-extracted from "Machine Learning: The Complete Beginner's Guide" by Md Shafiqul Baten Sumon.
+# Extraction method: text pulled from the book's PDF and, for Python
+# files, auto-repaired for indentation. Syntax check: passed.
+# Review before running, especially if the status above is not "passed".
+
+"""Supervised learning, start to finish: will this loan applicant default?"""
+from pathlib import Path
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
+
+df = pd.read_csv(Path(__file__).resolve().parents[1] / "data" / "loan_data.csv")
+df = df.dropna()                                    # keep this first example simple
+
+features = ["income", "credit_score", "loan_amount", "employment_years", "num_debts"]
+X, y = df[features], df["defaulted"]                # y is 0 (repaid) or 1 (defaulted)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42)
+
+forest = RandomForestClassifier(n_estimators=200, random_state=42)
+forest.fit(X_train, y_train)
+
+print(classification_report(y_test, forest.predict(X_test), target_names=["repaid",
+"defaulted"]))
+
+# Which inputs mattered most?
+importance = pd.Series(forest.feature_importances_, index=features)
+print(importance.sort_values(ascending=False).round(3))

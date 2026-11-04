@@ -1,0 +1,20 @@
+# embedding_layer.py
+# Auto-extracted from "Machine Learning: The Complete Beginner's Guide" by Md Shafiqul Baten Sumon.
+# Extraction method: text pulled from the book's PDF and, for Python
+# files, auto-repaired for indentation. Syntax check: passed.
+# Review before running, especially if the status above is not "passed".
+
+"""An embedding layer is just a lookup table of vectors. Untrained, the numbers mean
+nothing."""
+import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+vocab = {"king": 0, "queen": 1, "banana": 2}
+emb = nn.Embedding(num_embeddings=3, embedding_dim=4)
+vec = {w: emb(torch.tensor(i)) for w, i in vocab.items()}
+print("king ->", [round(v, 2) for v in vec["king"].tolist()])
+cos = nn.functional.cosine_similarity
+print("untrained king~queen :", round(cos(vec["king"], vec["queen"], dim=0).item(), 2))
+print("untrained king~banana:", round(cos(vec["king"], vec["banana"], dim=0).item(), 2))
+print("-> these similarities are random. Training (or loading pretrained vectors) is what puts king near queen.")

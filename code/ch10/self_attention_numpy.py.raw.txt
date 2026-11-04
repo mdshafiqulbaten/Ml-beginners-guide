@@ -1,0 +1,24 @@
+ """Self-attention, computed step by step with real numbers (no libraries needed)."""
+ import numpy as np
+
+ np.random.seed(0)
+ tokens = ["the", "animal", "was", "tired"]
+ d = 4                                                    # size of each embedding
+
+ X = np.random.randn(len(tokens), d)                # one embedding per token
+ Wq, Wk, Wv = (np.random.randn(d, d) for _ in range(3))   # learned in a real model
+
+ Q, K, V = X @ Wq, X @ Wk, X @ Wv                   # queries, keys, values
+ # how well does each query match each key?
+ scores = Q @ K.T / np.sqrt(d)
+ weights = np.exp(scores) / np.exp(scores).sum(axis=1, keepdims=True)   # softmax per row
+ output = weights @ V                               # blend the values using those
+ weights
+
+ np.set_printoptions(precision=2, suppress=True)
+ print("Attention weights (each ROW sums to 1):")
+ print("          " + " ".join(f"{t:>6}" for t in tokens))
+ for t, row in zip(tokens, weights):
+     print(f"{t:>8} " + " ".join(f"{w:6.2f}" for w in row))
+ print("\nRow sums:", weights.sum(axis=1))
+ print("Output shape:", output.shape, "(same as the input: one new vector per token)")

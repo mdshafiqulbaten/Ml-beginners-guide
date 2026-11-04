@@ -1,0 +1,38 @@
+# lr_range_test.py
+# Auto-extracted from "Machine Learning: The Complete Beginner's Guide" by Md Shafiqul Baten Sumon.
+# Extraction method: text pulled from the book's PDF and, for Python
+# files, auto-repaired for indentation. Syntax check: NOT CONFIRMED - please review.
+# Review before running, especially if the status above is not "passed".
+
+ """Learning-rate range test: sweep the rate upward and watch where the loss starts to
+ explode."""
+ import json
+ import torch
+ import torch.nn as nn
+ import sys; sys.path.insert(0, "..")
+ from common_digits import get_digits
+
+ torch.manual_seed(0)
+ Xtr, _, ytr, _ = get_digits()
+ Xtr = Xtr.flatten(1)
+ model = nn.Sequential(nn.Linear(64, 64), nn.ReLU(), nn.Linear(64, 10))
+ loss_fn = nn.CrossEntropyLoss()
+ opt = torch.optim.SGD(model.parameters(), lr=1e-4)
+
+ lrs, losses, lr = [], [], 1e-4
+
+for step in range(120):
+     for g in opt.param_groups:
+         g["lr"] = lr
+     idx = torch.randint(0, len(Xtr), (64,))
+     opt.zero_grad()
+     loss = loss_fn(model(Xtr[idx]), ytr[idx])
+     loss.backward(); opt.step()
+     lrs.append(lr); losses.append(loss.item())
+     if step % 15 == 0:
+         print(f"lr {lr:9.5f} loss {loss.item():8.3f}")
+     lr *= 1.12                                            # grow the rate ~12% each
+step
+     if loss.item() > 50 or not torch.isfinite(loss):
+         print("loss exploded, stopping"); break
+json.dump({"lr": lrs, "loss": losses}, open("../outputs/ch07_lr_range.json", "w"))

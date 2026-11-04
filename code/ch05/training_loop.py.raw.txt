@@ -1,0 +1,40 @@
+ """The standard PyTorch training loop, written out, with train AND validation curves."""
+ import json
+ import torch
+ import torch.nn as nn
+ import sys; sys.path.insert(0, "..")
+ from common_digits import get_digits
+
+torch.manual_seed(0)
+Xtr, Xte, ytr, yte = get_digits()
+# an MLP wants flat vectors: 64 numbers
+Xtr, Xte = Xtr.flatten(1), Xte.flatten(1)
+
+model = nn.Sequential(nn.Linear(64, 128), nn.ReLU(), nn.Dropout(0.2), nn.Linear(128,
+10))
+opt = torch.optim.Adam(model.parameters(), lr=0.003)
+loss_fn = nn.CrossEntropyLoss()
+history = {"train_loss": [], "val_loss": [], "val_acc": []}
+
+for epoch in range(1, 41):
+    model.train()                                          # dropout ON
+    perm = torch.randperm(len(Xtr))
+    running = 0.0
+    for i in range(0, len(Xtr), 64):
+        idx = perm[i:i + 64]
+        opt.zero_grad()                                    # 1. clear old gradients
+        loss = loss_fn(model(Xtr[idx]), ytr[idx])          # 2. forward pass + loss
+        loss.backward()                                    # 3. backpropagation
+        opt.step()                                         # 4. update weights
+        running += loss.item() * len(idx)
+    model.eval()                                           # dropout OFF for evaluation
+    with torch.no_grad():
+        out = model(Xte)
+        history["train_loss"].append(running / len(Xtr))
+        history["val_loss"].append(loss_fn(out, yte).item())
+        history["val_acc"].append((out.argmax(1) == yte).float().mean().item())
+    if epoch % 5 == 0:
+        print(f"epoch {epoch:2d} train loss {history['train_loss'][-1]:.3f} "
+              f"val loss {history['val_loss'][-1]:.3f} val acc {history['val_acc'][-
+1]:.3f}")
+json.dump(history, open("../outputs/ch05_history.json", "w"))

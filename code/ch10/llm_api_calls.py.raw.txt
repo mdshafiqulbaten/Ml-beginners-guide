@@ -1,0 +1,85 @@
+API key and internet access). Syntax-checked only.
+ """Calling hosted LLMs. Model names change often: copy the current name from the
+ provider's docs."""
+ import os
+
+ OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "<current-openai-model>")
+ ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "<current-claude-model>")
+ question = "Explain overfitting to a 12-year-old in two sentences."
+
+ def ask_openai(prompt):
+     from openai import OpenAI
+     # reads OPENAI_API_KEY from the environment
+     client = OpenAI()
+     r = client.chat.completions.create(model=OPENAI_MODEL, messages=[{"role": "user",
+ "content": prompt}])
+     return r.choices[0].message.content
+
+ def ask_claude(prompt):
+     import anthropic
+     # reads ANTHROPIC_API_KEY from the environment
+     client = anthropic.Anthropic()
+     r = client.messages.create(model=ANTHROPIC_MODEL, max_tokens=300, messages=[{"role":
+ "user", "content": prompt}])
+     return r.content[0].text
+
+ if __name__ == "__main__":
+     print(ask_openai(question))
+     print(ask_claude(question))
+
+The Claude call is the second function in llm_api_calls.py above.
+
+Fine-Tuning vs. Prompting: When to Do Each
+Given a pre-trained LLM, you have two ways to adapt it for your task: prompting (no
+training required) or fine-tuning (further training on your specific data). Choosing
+between them depends on your task, data, and resources.
+
+ Approach                                             When to Use It
+
+ Zero/Few-shot prompting                              Task is common (translation, summarization,
+                                                      Q&A). You have fewer than ~100 examples. You
+                                                      need to change the task frequently. Cost: per-
+                                                      token API fees only.
+ Prompt engineering                                   Task requires specific output format. Chain-of-
+                                                      thought helps (math, logic). Role/persona
+                                                      matters. Still no training required.
+ Fine-tuning                                          Task is highly specialized (medical, legal,
+                                                      domain-specific). You need consistent
+                                                      format/style. You have 1,000+ examples.
+                                                      Privacy requirements prevent sending data to
+                                                      APIs.
+ RAG (retrieval-augmented)                            You need up-to-date information. You have
+                                                      large document collections. You need citations
+                                                      and source attribution. Avoids hallucination on
+                                                      facts.
+
+Approach                                      When to Use It
+Full pre-training                             Only for organizations with massive compute
+                                              budgets. Necessary only when domain is so
+                                              specialized that general internet text is
+                                              insufficient (e.g., specialized scientific
+                                              language).
+
+Key Terms
+Term                                          Meaning
+
+Attention                                     A mechanism that lets each token weigh every
+                                              other token when building its meaning.
+Query, key, value                             Three vectors per token: what it looks for, what
+                                              it offers, and what it passes on.
+Transformer                                   A network built from attention layers; the basis
+                                              of modern language models.
+Encoder / decoder                             Encoders (like BERT) read text to understand it;
+                                              decoders (like GPT) generate text token by
+                                              token.
+API                                           A way for your code to send a request to a
+                                              hosted model and receive its reply.
+
+Check Your Understanding
+Try these before you read on. Model answers are in Appendix D. Exercises that
+mention a script use the free companion code.
+  1.     Run code/ch10/self_attention_numpy.py. What property do the rows of the
+         weight matrix have, and why?
+  2.     In code/ch10/mini_transformer.py the model learns to reverse 8 digits.
+         Where does output position 0 look, and why can we trust this as evidence of
+         learning?

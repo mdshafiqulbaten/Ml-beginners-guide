@@ -1,0 +1,90 @@
+internet access to download models). Syntax-checked only.
+ """Tokenizers and a ready-made sentiment pipeline from Hugging Face."""
+ from transformers import AutoTokenizer, pipeline
+
+ tok = AutoTokenizer.from_pretrained("bert-base-uncased")
+ text = "Unbelievably good tokenization."
+ # look at the pieces: rare words are split into sub-words
+ print(tok.tokenize(text))
+ # the integer IDs the model sees: print them, never guess them
+ print(tok(text)["input_ids"])
+
+ batch = tok(["short", "a much longer sentence than the first one"], padding=True,
+ return_tensors="pt")
+ # padding + mask make a rectangular batch
+ print(batch["input_ids"].shape, batch["attention_mask"])
+
+ # picks a default model; pin a model name in real projects
+ classifier = pipeline("sentiment-analysis")
+ print(classifier(["I loved this book.", "This was a waste of time."]))
+
+  Common Questions
+  Q: Why is BERT bidirectional and GPT unidirectional?
+  A: BERT is designed for understanding tasks where you have the complete text
+  (classification, Q&A). It reads left AND right to build the richest possible
+  representation of each word. GPT is designed for generation tasks where you must
+  produce the next word without seeing future words. A generation model that could see
+  future words would be ‘cheating’ — it is not generating, it is copying.
+  Q: How do tokenizers handle words they have never seen?
+  A: Subword tokenizers like BPE split unknown words into known subword units. A
+  name such as ‘GPT-4’ might be split into a few pieces (the exact split depends on the
+  tokenizer’s vocabulary, so check it yourself with a tokenizer, as the code below does).
+  This means any word, including new proper nouns, technical terms, or invented
+  words, can always be represented — you just need more tokens to represent rare
+  words.
+  Q: Why do transformer models have a maximum context length?
+  A: Self-attention has O(n²) computational complexity — doubling the sequence length
+  quadruples the computation. A 512-token sequence requires 512² = 262,144 attention
+  computations. A 128,000-token context requires 16 billion. Extending context length
+  requires architectural innovations like sparse attention, sliding window attention, or
+  linear attention mechanisms.
+
+Text Preprocessing: From Raw Text to Model Input
+Before any NLP model can process text, the raw text must go through a preprocessing
+pipeline. Understanding this pipeline prevents a whole class of bugs and performance
+problems.
+
+Tokenization: Splitting Text Into Units
+Tokenization splits text into the smallest units the model processes. There are three
+levels:
+     •    Word-level: split on spaces and punctuation. Simple but creates large
+          vocabularies and cannot handle misspellings or new words (‘gangster’ and
+          ‘gangsters’ are different tokens).
+     •    Character-level: treat each character as a token. Small vocabulary (26 letters
+          + punctuation) but very long sequences, and it takes many tokens to
+          represent meaningful concepts.
+     •    Subword (BPE, WordPiece, SentencePiece): the modern standard. Split
+          words into frequent subword units: ‘unbelievable’ → [‘un’, ‘##believe’,
+          ‘##able’]. Rare words are decomposed; common words remain whole.
+          Handles new words gracefully. Vocabulary size: 30,000-50,000 tokens. Used
+          in all modern LLMs.
+
+Tokenization is shown in huggingface_basics.py above: print the pieces and the integer IDs for yourself
+rather than trusting a hand-written list.
+
+Padding and Truncation: Making Sequences the Same Length
+Neural networks require all inputs in a batch to be the same length (for efficient
+matrix operations). Short sequences are padded with a special [PAD] token; long
+sequences are truncated. An attention mask (1 for real tokens, 0 for padding) tells the
+model to ignore padded positions.
+
+Padding and the attention mask are the last part of huggingface_basics.py above.
+
+Key Terms
+ Term                                                 Meaning
+
+ Sequence                                             Data where order matters: text, speech, sensor
+                                                      readings over time.
+ RNN                                                  A network that reads a sequence one step at a
+                                                      time, passing a memory forward.
+
+Term                                         Meaning
+LSTM                                         An RNN variant with gates that decide what to
+                                             remember and what to forget.
+Embedding                                    A list of numbers representing a word so that
+                                             similar words get similar lists.
+Token                                        A piece of text (a word or part of a word) that a
+                                             model reads as one unit.
+
+Check Your Understanding
+Try these before you read on. Model answers are in Appendix D. Exercises that

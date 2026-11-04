@@ -1,0 +1,29 @@
+ """OneCycleLR: ramp the learning rate up, then anneal down. Trained and compared with a
+ constant rate."""
+ import torch
+ import torch.nn as nn
+ import sys; sys.path.insert(0, "..")
+ from common_digits import get_digits
+
+ Xtr, Xte, ytr, yte = get_digits()
+ Xtr, Xte = Xtr.flatten(1), Xte.flatten(1)
+
+ def train(use_onecycle, epochs=15):
+     torch.manual_seed(0)
+     model = nn.Sequential(nn.Linear(64, 128), nn.ReLU(), nn.Linear(128, 10))
+     opt = torch.optim.SGD(model.parameters(), lr=0.05, momentum=0.9)
+     steps = epochs * ((len(Xtr) + 63) // 64)
+     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=0.3, total_steps=steps) if
+ use_onecycle else None
+     loss_fn = nn.CrossEntropyLoss()
+     for _ in range(epochs):
+         perm = torch.randperm(len(Xtr))
+         for i in range(0, len(Xtr), 64):
+             idx = perm[i:i + 64]
+             opt.zero_grad(); loss_fn(model(Xtr[idx]), ytr[idx]).backward(); opt.step()
+             if sched: sched.step()
+     with torch.no_grad():
+         return (model(Xte).argmax(1) == yte).float().mean().item()
+
+ print(f"constant lr 0.05, 15 epochs : test acc {train(False):.3f}")
+ print(f"OneCycle (max 0.3), 15 epochs: test acc {train(True):.3f}")

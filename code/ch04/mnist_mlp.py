@@ -1,0 +1,39 @@
+# mnist_mlp.py
+# Auto-extracted from "Machine Learning: The Complete Beginner's Guide" by Md Shafiqul Baten Sumon.
+# Extraction method: text pulled from the book's PDF and, for Python
+# files, auto-repaired for indentation. Syntax check: NOT CONFIRMED - please review.
+# Review before running, especially if the status above is not "passed".
+
+"""A fully connected network on REAL handwritten digits (5,000 MNIST images, 784 pixels
+each)."""
+import torch
+import torch.nn as nn
+import sys; sys.path.insert(0, "..")
+from common_mnist import get_mnist
+
+torch.manual_seed(0)
+Xtr, Xte, ytr, yte = [torch.tensor(a) for a in get_mnist()]
+print("training images:", tuple(Xtr.shape), " test images:", tuple(Xte.shape))
+
+model = nn.Sequential(
+    nn.Linear(784, 256), nn.ReLU(), nn.Dropout(0.2),     # input (784 pixels) -> 256
+neurons
+    nn.Linear(256, 128), nn.ReLU(), nn.Dropout(0.2),     # 256 -> 128
+    nn.Linear(128, 10),                                  # 128 -> 10 digit scores
+)
+print("trainable parameters:", sum(p.numel() for p in model.parameters()))
+
+opt = torch.optim.Adam(model.parameters(), lr=0.001)
+loss_fn = nn.CrossEntropyLoss()
+for epoch in range(1, 21):
+    model.train()
+    perm = torch.randperm(len(Xtr))
+    for i in range(0, len(Xtr), 64):
+        idx = perm[i:i + 64]
+        opt.zero_grad(); loss_fn(model(Xtr[idx]), ytr[idx]).backward(); opt.step()
+    if epoch % 5 == 0:
+
+            model.eval()
+            with torch.no_grad():
+                acc = (model(Xte).argmax(1) == yte).float().mean().item()
+            print(f"epoch {epoch:2d} test accuracy {acc:.3f}")
