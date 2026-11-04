@@ -1,0 +1,39 @@
+# mixed_type_pipeline.py
+# Auto-extracted from "Machine Learning: The Complete Beginner's Guide" by Md Shafiqul Baten Sumon.
+# Extraction method: text pulled from the book's PDF and, for Python
+# files, auto-repaired for indentation. Syntax check: passed.
+# Review before running, especially if the status above is not "passed".
+
+"""A leak-proof pipeline for a table with numbers, categories and missing values."""
+from pathlib import Path
+import joblib
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+df = pd.read_csv(Path(__file__).resolve().parents[1] / "data" / "loan_data.csv")
+X, y = df.drop(columns="defaulted"), df["defaulted"]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+
+numeric = ["income", "credit_score", "loan_amount", "employment_years", "num_debts"]
+categorical = ["employment_type", "loan_purpose", "home_ownership"]
+
+preprocess = ColumnTransformer([ ("num", Pipeline([("fill", SimpleImputer(strategy="median")), ("scale", StandardScaler())]), numeric), ("cat", Pipeline([("fill", SimpleImputer(strategy="most_frequent")), ("onehot", OneHotEncoder(handle_unknown="ignore"))]), categorical), ])
+pipeline = Pipeline([("prep", preprocess), ("model", GradientBoostingClassifier(n_estimators=150, max_depth=3, random_state=0))])
+
+# Preprocessing is re-fit inside every fold, so nothing leaks from validation into
+
+training
+scores = cross_val_score(pipeline, X_train, y_train, cv=5, scoring="roc_auc")
+print(f"cross-validated AUC: {scores.mean():.3f} +/- {scores.std():.3f}")
+
+pipeline.fit(X_train, y_train)
+from sklearn.metrics import roc_auc_score
+print(f"test AUC (once):     {roc_auc_score(y_test, pipeline.predict_proba(X_test)[:, 1]):.3f}")
+print(f"test accuracy:       {pipeline.score(X_test, y_test):.3f} (the baseline of always saying no-default is {1 - y_test.mean():.3f})")
+joblib.dump(pipeline, "loan_pipeline.joblib")        # ONE file: preprocessing + model
+print("saved loan_pipeline.joblib")

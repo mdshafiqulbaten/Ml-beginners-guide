@@ -1,0 +1,176 @@
+ """Copy-and-adapt template: a PyTorch training skeleton with validation, best-model
+ saving and early stopping."""
+ import copy
+ import torch
+ import torch.nn as nn
+ from torch.utils.data import DataLoader, TensorDataset
+ from sklearn.datasets import load_digits
+ from sklearn.model_selection import train_test_split
+
+ torch.manual_seed(0)
+ device = "cuda" if torch.cuda.is_available() else "cpu"
+
+ # DATA (replace with your own tensors)
+ X, y = load_digits(return_X_y=True)
+ X = torch.tensor(X / 16.0, dtype=torch.float32); y = torch.tensor(y)
+ X_tr, X_va, y_tr, y_va = train_test_split(X, y, test_size=0.25, stratify=y,
+ random_state=0)
+
+train_dl = DataLoader(TensorDataset(X_tr, y_tr), batch_size=64, shuffle=True)
+X_va, y_va = X_va.to(device), y_va.to(device)
+
+# MODEL / LOSS / OPTIMIZER
+model = nn.Sequential(nn.Linear(64, 128), nn.ReLU(), nn.Dropout(0.2), nn.Linear(128,
+10)).to(device)
+loss_fn, opt = nn.CrossEntropyLoss(), torch.optim.Adam(model.parameters(), lr=0.003)
+
+best_loss, best_state, patience, bad = float("inf"), None, 5, 0
+for epoch in range(100):
+    model.train()
+    for xb, yb in train_dl:
+        xb, yb = xb.to(device), yb.to(device)
+        opt.zero_grad(); loss_fn(model(xb), yb).backward(); opt.step()
+    model.eval()
+    with torch.no_grad():
+        val_loss = loss_fn(model(X_va), y_va).item()
+        acc = (model(X_va).argmax(1) == y_va).float().mean().item()
+    if val_loss < best_loss:
+        best_loss, best_state, bad = val_loss, copy.deepcopy(model.state_dict()), 0
+    else:
+        bad += 1
+        if bad >= patience:
+            print(f"early stop at epoch {epoch}"); break
+model.load_state_dict(best_state)
+torch.save(best_state, "best_model.pt")
+print(f"best val loss {best_loss:.3f}, val accuracy {acc:.3f}")
+
+Cheat Sheet 5: Common Mistakes and Their Fixes
+Symptom / Mistake                             Diagnosis and Fix
+
+Training loss flat from the start             Check learning rate (might be 0 or too small).
+                                              Check activation functions — missing ReLU?
+                                              Check data normalization.
+Training loss = NaN                           Learning rate too high. Exploding gradients. Add
+                                              gradient clipping: clip_grad_norm_(params,
+                                              1.0). Check for log(0) in loss.
+Training loss decreases, val loss increases   Overfitting. Add dropout, L2 regularization,
+immediately                                   early stopping. Reduce model size. Get more
+                                              data.
+Model predicts only one class                 Class imbalance. Use class_weight=‘balanced’
+                                              or SMOTE. Lower classification threshold. Check
+                                              label encoding.
+Accuracy looks great, F1 is terrible          Class imbalance. ‘Accuracy’ is misleading. Use
+                                              stratified split. Report F1, precision, recall, AUC
+                                              instead.
+Validation accuracy higher than training      Dropout is active during training (normal!) OR
+accuracy                                      validation set is accidentally easier. Check data
+                                              splits.
+GPU out of memory error                       Reduce batch size by half. Use gradient
+                                              checkpointing. Use mixed precision (autocast).
+                                              Reduce model size.
+
+Symptom / Mistake                             Diagnosis and Fix
+Model takes too long to train                 Use transfer learning. Increase batch size. Use
+                                              AMP (mixed precision). Profile — is CPU
+                                              preprocessing the bottleneck?
+Model works in notebook but not in            Different preprocessing in production
+production                                    vs. training. Always save and load the full
+                                              pipeline, not just the model weights.
+Features have very different scales           Forgot to normalize. StandardScaler or
+                                              MinMaxScaler must be fit on training data and
+                                              applied consistently everywhere.
+Test AUC much lower than cross-validation     Data leakage in cross-validation. Check:
+AUC                                           preprocessing done inside CV fold? Target
+                                              encoding leaking? Time series split needed?
+LLM gives inconsistent outputs for the same   Temperature > 0 introduces randomness. Set
+prompt                                        temperature=0 for deterministic outputs. Use
+                                              seed if supported.
+
+Cheat Sheet 6: The Complete ML Project Checklist
+Use this checklist for every ML project. Check each box before moving to the next
+phase.
+
+Phase 1: Problem Definition
+Checkpoint                                    How to Verify
+
+✓ Define exact prediction target              Write it in one sentence: ‘Predict whether
+                                              customer X will churn in the next 30 days
+                                              (binary: yes/no).’
+✓ Define success metric(s)                    Specify numerically: ‘AUC-ROC > 0.85, Recall >
+                                              0.90 for positive class.’
+✓ Establish a baseline                        What does the simplest possible approach
+                                              achieve? Always-predict-majority gives 80%
+                                              accuracy on 80/20 split.
+✓ Check data availability                     Do you have sufficient labeled data? Is the
+                                              target label actually available at prediction time
+                                              in production?
+✓ Define cost of errors                       What is the cost of a false positive? False
+                                              negative? This determines which metric to
+                                              optimize.
+
+Phase 2: Data Preparation
+Checkpoint                                    How to Verify
+
+✓ Data is split before any preprocessing      X_train, X_val, X_test = split(X) FIRST.
+                                              Preprocessors fit only on X_train.
+✓ No data leakage                             Does any feature contain information from the
+                                              future or the target itself? Remove it.
+✓ Missing values handled                      df.isnull().sum() shows 0 after imputation.
+                                              Strategy documented.
+✓ Categorical features encoded                No string columns remain in model input. Check
+                                              dtypes.
+✓ Class imbalance addressed                   If minority class < 10%, use SMOTE or
+                                              class_weight. Verify with stratified split.
+✓ Feature distributions checked               Plot histograms. Apply log transform to right-
+                                              skewed features. Check for outliers.
+
+Phase 3: Modeling
+Checkpoint                                    How to Verify
+
+✓ Baseline model built first                  Logistic regression or linear regression runs and
+                                              gives a number to beat.
+✓ Cross-validation used for model selection   Use StratifiedKFold(5) for classification. Report
+                                              mean ± std.
+✓ Hyperparameters tuned on validation, not    RandomizedSearchCV uses val set. Test set
+test                                          never touched during tuning.
+✓ Model performance analyzed by subgroup      Report metrics for key demographic groups if
+                                              applicable.
+✓ Errors analyzed manually                    Look at 20-50 incorrect predictions. What
+                                              patterns do you see?
+
+Phase 4: Deployment
+Checkpoint                                    How to Verify
+
+✓ Full pipeline saved (not just weights)      joblib.dump(pipeline, …) saves preprocessor +
+                                              model. reload and predict works on fresh data.
+✓ Model tested on true holdout                Test set AUC evaluated ONCE after all modeling
+                                              decisions made.
+✓ Prediction latency measured                 time per request < requirement. Tested under
+                                              concurrent load.
+
+Checkpoint                   How to Verify
+✓ Monitoring plan in place   Data drift, prediction drift, and performance
+                             metrics are logged to a dashboard.
+✓ Rollback plan exists       Previous model version is saved and can be
+                             redeployed in < 5 minutes if new model
+                             degrades.
+✓ Model card written         Document: training data, limitations,
+                             performance by subgroup, intended use, out-
+                             of-scope use.
+
+Appendix A: NumPy and Pandas
+— Essential Reference Guide
+This appendix provides a practical reference for the two most fundamental Python
+libraries for machine learning. Every ML practitioner uses these daily. Bookmark this
+section and return to it whenever you need a quick reminder.
+
+NumPy: The Foundation of Scientific Python
+NumPy (Numerical Python) provides the ndarray — a fast, flexible N-dimensional
+array that is the backbone of all numerical computation in Python. Every ML library
+— pandas, scikit-learn, PyTorch, TensorFlow — is built on NumPy arrays internally.
+
+One Script That Runs Every Idea Below
+The script below creates arrays, slices and filters them, combines them with
+vectorized arithmetic and broadcasting, and then does the everyday pandas jobs:
+finding missing values, filling them, grouping, and creating new columns. Run it and
+change the numbers to see what happens.

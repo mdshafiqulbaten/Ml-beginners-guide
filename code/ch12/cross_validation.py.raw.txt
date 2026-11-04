@@ -1,0 +1,18 @@
+ """Five-fold cross-validation: a more honest score than a single split."""
+ from sklearn.datasets import load_breast_cancer
+ from sklearn.ensemble import RandomForestClassifier
+ from sklearn.model_selection import StratifiedKFold, cross_validate
+
+ X, y = load_breast_cancer(return_X_y=True)
+ model = RandomForestClassifier(n_estimators=200, random_state=42)
+ cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+ results = cross_validate(model, X, y, cv=cv, scoring=["accuracy", "f1", "roc_auc"],
+ return_train_score=True)
+
+for metric in ["accuracy", "f1", "roc_auc"]:
+    scores = results[f"test_{metric}"]
+    print(f"{metric:9s} {scores.mean():.3f} +/- {scores.std():.3f}   (folds:
+{scores.round(3)})")
+print(f"\ntrain accuracy {results['train_accuracy'].mean():.3f} vs validation
+{results['test_accuracy'].mean():.3f}")

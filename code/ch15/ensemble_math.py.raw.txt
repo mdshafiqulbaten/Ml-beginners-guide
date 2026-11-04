@@ -1,0 +1,12 @@
+"""Why voting works: the exact accuracy of a majority vote of independent models."""
+from scipy.stats import binom
+
+n = 100                                      # number of models
+print(f"Majority vote of {n} independent classifiers:")
+for p in [0.51, 0.55, 0.60, 0.65, 0.70, 0.80]:
+    accuracy = 1 - binom.cdf(n // 2, n, p)     # P(more than 50 of 100 are right)
+    print(f" each model {p:.0%} accurate -> ensemble {accuracy:.4%}")
+
+# The catch: real models share training data, so their mistakes are correlated.
+# Perfectly correlated models gain nothing: if all 100 copy one model, accuracy stays at
+p.

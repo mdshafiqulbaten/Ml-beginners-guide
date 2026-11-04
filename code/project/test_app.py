@@ -1,0 +1,33 @@
+# test_app.py
+# Auto-extracted from "Machine Learning: The Complete Beginner's Guide" by Md Shafiqul Baten Sumon.
+# Extraction method: text pulled from the book's PDF and, for Python
+# files, auto-repaired for indentation. Syntax check: NOT CONFIRMED - please review.
+# Review before running, especially if the status above is not "passed".
+
+ """Step 7: test the API like a user would.       Run:   python test_app.py"""
+ from fastapi.testclient import TestClient
+ from app import app
+
+ client = TestClient(app)
+
+ assert client.get("/health").json()["status"] == "ok"
+
+ risky = {"tenure_months": 2, "monthly_charges": 95, "contract": "month-to-month",
+ "internet_service": "fiber",
+          "payment_method": "electronic_check", "support_calls": 5, "paperless_billing":
+ 1}
+ loyal = {"tenure_months": 60, "monthly_charges": 40, "contract": "two-year",
+ "internet_service": "dsl",
+          "payment_method": "bank_transfer", "support_calls": 0, "paperless_billing": 0}
+ r1, r2 = client.post("/predict", json=risky).json(), client.post("/predict",
+ json=loyal).json()
+ print("risky customer:", r1)
+ print("loyal customer:", r2)
+ assert r1["churn_probability"] > r2["churn_probability"], "model ranks customers
+ backwards"
+
+ bad = client.post("/predict", json={**risky, "tenure_months": -5})
+
+assert bad.status_code == 422, "invalid input should be rejected"
+print("invalid input rejected with status", bad.status_code)
+print("ALL TESTS PASSED")

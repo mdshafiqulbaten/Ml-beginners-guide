@@ -1,0 +1,36 @@
+ """Retrieval-Augmented Generation (RAG) without any heavy framework.
+
+ Step 1-2 (chunk + retrieve) run for real, offline, using TF-IDF.
+ Step 3 builds the prompt you would send to any LLM.
+ """
+ from sklearn.feature_extraction.text import TfidfVectorizer
+ from sklearn.metrics.pairwise import cosine_similarity
+
+ handbook = """
+ Remote work: Employees may work remotely up to three days per week with manager
+ approval.
+ Expenses: Submit receipts within 30 days. Meals while traveling are reimbursed up to $60
+ per day.
+ Vacation: Full-time staff receive 20 vacation days per year, accrued monthly.
+ Security: Laptops must use full-disk encryption and a password manager at all times.
+ Parental leave: Primary caregivers receive 16 weeks of paid leave.
+ """
+ chunks = [line.strip() for line in handbook.strip().split("\n")]      # 1. chunk
+
+ vectorizer = TfidfVectorizer(stop_words="english")
+ chunk_vectors = vectorizer.fit_transform(chunks)                       # 2. index
+
+ def retrieve(question, k=2):
+     scores = cosine_similarity(vectorizer.transform([question]), chunk_vectors)[0]
+     best = scores.argsort()[::-1][:k]
+     return [(chunks[i], float(scores[i])) for i in best]
+
+ question = "How many days can I work from home?"
+ hits = retrieve(question)
+ for text, score in hits:
+     print(f"score {score:.2f}: {text}")
+
+ prompt = ("Answer using ONLY the context below. If the answer is not there, say you do
+ not know.\n\n"
+           "Context:\n" + "\n".join(t for t, _ in hits) + f"\n\nQuestion: {question}")
+ print("\n--- Prompt to send to an LLM ---\n" + prompt)

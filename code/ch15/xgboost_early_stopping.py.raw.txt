@@ -1,0 +1,25 @@
+ """XGBoost with honest early stopping: validation data for stopping, test data
+ untouched."""
+ import xgboost as xgb
+ from sklearn.datasets import load_breast_cancer
+ from sklearn.metrics import roc_auc_score
+ from sklearn.model_selection import train_test_split
+
+ X, y = load_breast_cancer(return_X_y=True)
+ X_rest, X_test, y_rest, y_test = train_test_split(X, y, test_size=0.2, stratify=y,
+ random_state=42)
+ X_train, X_val, y_train, y_val = train_test_split(X_rest, y_rest, test_size=0.25,
+ stratify=y_rest, random_state=42)
+
+ model = xgb.XGBClassifier(
+     n_estimators=1000, learning_rate=0.05, max_depth=3, subsample=0.8,
+ colsample_bytree=0.8,
+     reg_lambda=1.0, eval_metric="auc", early_stopping_rounds=30, random_state=42,
+ n_jobs=-1)
+ # VALIDATION decides when to stop
+ model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=False)
+
+print(f"Stopped at tree {model.best_iteration} of a possible 1000")
+print(f"Validation AUC: {model.best_score:.4f}")
+print(f"Test AUC (looked at once): {roc_auc_score(y_test, model.predict_proba(X_test)[:,
+1]):.4f}")
